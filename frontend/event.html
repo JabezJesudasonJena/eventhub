@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Details - Event Registration System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">← Back to Events</a>
+            <h1 id="event-title">Event Details</h1>
+        </header>
+
+        <!-- Message display area -->
+        <div id="message" class="message hidden"></div>
+
+        <!-- Event details -->
+        <div id="event-details" class="event-details">
+            <div class="loading">Loading event details...</div>
+        </div>
+
+        <!-- Registration form -->
+        <div id="registration-section" class="form-container hidden">
+            <h2>Register for this Event</h2>
+            <form id="registration-form">
+                <div class="form-group">
+                    <label for="name">Your Name *</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email Address *</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Register Now</button>
+            </form>
+        </div>
+
+        <!-- Registrations list -->
+        <div id="registrations-section" class="hidden">
+            <h2>Registered Attendees (<span id="registration-count">0</span>)</h2>
+            <div id="registrations-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('id');
+
+        // Show message to user
+        function showMessage(text, type = 'success') {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type}`;
+            setTimeout(() => {
+                messageEl.className = 'message hidden';
+            }, 3000);
+        }
+
+        // Format date for display
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Load event details
+        async function loadEventDetails() {
+            if (!eventId) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/events/${eventId}`);
+                if (!response.ok) throw new Error('Event not found');
+                
+                const event = await response.json();
+                displayEventDetails(event);
+                loadRegistrations();
+            } catch (error) {
+                console.error('Error loading event:', error);
+                showMessage('Failed to load event details', 'error');
+                document.getElementById('event-details').innerHTML = 
+                    '<div class="error">Event not found or failed to load.</div>';
+            }
+        }
+
+        // Display event details
+        function displayEventDetails(event) {
+            document.getElementById('event-title').textContent = event.name;
+            document.getElementById('event-details').innerHTML = `
+                <div class="event-detail-card">
+                    <h2>${escapeHtml(event.name)}</h2>
+                    <div class="detail-row">
+                        <strong>📅 Date:</strong>
+                        <span>${formatDate(event.date)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <strong>📍 Location:</strong>
+                        <span>${escapeHtml(event.location)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <strong>📝 Description:</strong>
+                        <p>${escapeHtml(event.description || 'No description provided')}</p>
+                    </div>
+                </div>
+            `;
+
+            // Show registration form
+            document.getElementById('registration-section').classList.remove('hidden');
+        }
+
+        // Load registrations
+        async function loadRegistrations() {
+            try {
+                const response = await fetch(`${API_URL}/events/${eventId}/registrations`);
+                if (!response.ok) throw new Error('Failed to fetch registrations');
+                
+                const registrations = await response.json();
+                displayRegistrations(registrations);
+            } catch (error) {
+                console.error('Error loading registrations:', error);
+            }
+        }
+
+        // Display registrations
+        function displayRegistrations(registrations) {
+            const section = document.getElementById('registrations-section');
+            const countEl = document.getElementById('registration-count');
+            const listEl = document.getElementById('registrations-list');
+
+            countEl.textContent = registrations.length;
+
+            if (registrations.length === 0) {
+                listEl.innerHTML = '<p class="empty-state">No registrations yet. Be the first to register!</p>';
+            } else {
+                listEl.innerHTML = `
+                    <div class="registrations-grid">
+                        ${registrations.map(reg => `
+                            <div class="registration-item">
+                                <strong>👤 ${escapeHtml(reg.name)}</strong>
+                                <span>${escapeHtml(reg.email)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            section.classList.remove('hidden');
+        }
+
+        // Handle registration form submission
+        document.getElementById('registration-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = {
+                name: document.getElementById('name').value.trim(),
+                email: document.getElementById('email').value.trim()
+            };
+
+            // Validation
+            if (!formData.name || !formData.email) {
+                showMessage('Please fill in all required fields', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/events/${eventId}/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to register');
+                }
+
+                showMessage('Successfully registered for the event!', 'success');
+                document.getElementById('registration-form').reset();
+                loadRegistrations(); // Reload registrations
+            } catch (error) {
+                console.error('Error registering:', error);
+                showMessage(error.message || 'Failed to register', 'error');
+            }
+        });
+
+        // Load event details on page load
+        document.addEventListener('DOMContentLoaded', loadEventDetails);
+    </script>
+</body>
+</html>

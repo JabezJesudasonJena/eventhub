@@ -6,7 +6,7 @@ require('dotenv').config();
 // Create PostgreSQL connection pool
 // Pool manages multiple connections efficiently
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.DATABASE_URL  ,
     ssl: {
         rejectUnauthorized: false // Required for Neon and most cloud PostgreSQL providers
     }

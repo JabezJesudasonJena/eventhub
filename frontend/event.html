@@ -47,7 +47,8 @@
     </div>
 
     <script>
-        const API_URL = 'https://eventhub-40ry.onrender.com/';
+        // API Base URL - automatically uses the same domain as the frontend
+        const API_URL = window.location.origin || 'http://localhost:3000';
         const urlParams = new URLSearchParams(window.location.search);
         const eventId = urlParams.get('id');
 

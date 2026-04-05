@@ -2,8 +2,9 @@
 node_modules/
 package-lock.json
 
-# Database
+# Database files (SQLite - not used anymore)
 backend/events.db
+*.db
 
 # Logs
 *.log
@@ -19,6 +20,7 @@ Thumbs.db
 *.swp
 *.swo
 
-# Environment
+# Environment variables (IMPORTANT: Never commit these!)
 .env
 .env.local
+.env.*.local

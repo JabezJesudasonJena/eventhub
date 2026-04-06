@@ -190,6 +190,4 @@ CREATE TABLE registrations (
 - Export registrations to CSV
 - Calendar view
 
-## License
-
-MIT License - feel free to use this project for learning and development purposes.
+            

@@ -3,15 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Form - Event Registration System</title>
+    <title>Event Form - Eventify</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="index.html" class="navbar-brand">✨ Eventify</a>
+            <div class="navbar-menu">
+                <a href="index.html" class="nav-link">Home</a>
+                <a href="form.html" class="nav-link active">Create Event</a>
+            </div>
+        </div>
+    </nav>
+
     <div class="container">
-        <header>
-            <a href="index.html" class="back-link">← Back to Events</a>
-            <h1 id="form-title">Create New Event</h1>
-        </header>
+        <!-- Back Link -->
+        <a href="index.html" class="back-link">← Back to Events</a>
+
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 id="form-title" class="page-title">Create New Event</h1>
+        </div>
 
         <!-- Message display area -->
         <div id="message" class="message hidden"></div>
@@ -44,7 +58,7 @@
 
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary" id="submit-btn">Create Event</button>
-                    <a href="index.html" class="btn">Cancel</a>
+                    <a href="index.html" class="btn btn-secondary">Cancel</a>
                 </div>
             </form>
         </div>

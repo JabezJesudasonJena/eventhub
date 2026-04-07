@@ -3,27 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Registration System</title>
+    <title>Eventify - Modern Event Registration System</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>📅 Event Registration System</h1>
-            <p>Browse and register for upcoming events</p>
-        </header>
-
-        <div class="actions">
-            <a href="form.html" class="btn btn-primary">Create New Event</a>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="index.html" class="navbar-brand">✨ Eventify</a>
+            <div class="navbar-menu">
+                <a href="index.html" class="nav-link active">Home</a>
+                <a href="form.html" class="nav-link">Create Event</a>
+            </div>
         </div>
+    </nav>
 
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>Discover Amazing Events</h1>
+        <p>Browse, create, and register for events all in one place</p>
+        <div class="hero-cta">
+            <a href="form.html" class="btn btn-primary btn-large">Create New Event</a>
+        </div>
+    </section>
+
+    <!-- Main Container -->
+    <div class="container">
         <!-- Message display area -->
         <div id="message" class="message hidden"></div>
 
-        <!-- Events list -->
-        <div id="events-container" class="events-grid">
-            <div class="loading">Loading events...</div>
-        </div>
+        <!-- Events Section -->
+        <section>
+            <div class="section-header">
+                <h2 class="section-title">Upcoming Events</h2>
+                <p class="section-subtitle">Explore events happening near you</p>
+            </div>
+
+            <!-- Events list -->
+            <div id="events-container" class="events-grid">
+                <div class="loading">Loading events...</div>
+            </div>
+        </section>
     </div>
 
     <script>
@@ -71,7 +91,7 @@
             const container = document.getElementById('events-container');
             
             if (events.length === 0) {
-                container.innerHTML = '<div class="empty-state">No events yet. Create your first event!</div>';
+                container.innerHTML = '<div class="empty-state">🎉 No events yet. Create your first event to get started!</div>';
                 return;
             }
 
@@ -81,11 +101,11 @@
                     <div class="event-info">
                         <p><strong>📅 Date:</strong> ${formatDate(event.date)}</p>
                         <p><strong>📍 Location:</strong> ${escapeHtml(event.location)}</p>
-                        <p class="description">${escapeHtml(event.description || 'No description')}</p>
+                        <p class="description">${escapeHtml(event.description || 'No description available')}</p>
                     </div>
                     <div class="event-actions">
                         <a href="event.html?id=${event.id}" class="btn btn-small btn-primary">View Details</a>
-                        <a href="form.html?id=${event.id}" class="btn btn-small">Edit</a>
+                        <a href="form.html?id=${event.id}" class="btn btn-small btn-secondary">Edit</a>
                         <button onclick="deleteEvent(${event.id})" class="btn btn-small btn-danger">Delete</button>
                     </div>
                 </div>

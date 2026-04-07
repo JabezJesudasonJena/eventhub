@@ -3,15 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Details - Event Registration System</title>
+    <title>Event Details - Eventify</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="index.html" class="navbar-brand">✨ Eventify</a>
+            <div class="navbar-menu">
+                <a href="index.html" class="nav-link">Home</a>
+                <a href="form.html" class="nav-link">Create Event</a>
+            </div>
+        </div>
+    </nav>
+
     <div class="container">
-        <header>
-            <a href="index.html" class="back-link">← Back to Events</a>
-            <h1 id="event-title">Event Details</h1>
-        </header>
+        <!-- Back Link -->
+        <a href="index.html" class="back-link">← Back to Events</a>
+
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 id="event-title" class="page-title">Event Details</h1>
+        </div>
 
         <!-- Message display area -->
         <div id="message" class="message hidden"></div>
@@ -27,12 +41,12 @@
             <form id="registration-form">
                 <div class="form-group">
                     <label for="name">Your Name *</label>
-                    <input type="text" id="name" name="name" required>
+                    <input type="text" id="name" name="name" required placeholder="Enter your full name">
                 </div>
 
                 <div class="form-group">
                     <label for="email">Email Address *</label>
-                    <input type="email" id="email" name="email" required>
+                    <input type="email" id="email" name="email" required placeholder="your.email@example.com">
                 </div>
 
                 <button type="submit" class="btn btn-primary">Register Now</button>
@@ -40,7 +54,7 @@
         </div>
 
         <!-- Registrations list -->
-        <div id="registrations-section" class="hidden">
+        <div id="registrations-section" class="registrations-section hidden">
             <h2>Registered Attendees (<span id="registration-count">0</span>)</h2>
             <div id="registrations-list"></div>
         </div>
@@ -108,15 +122,15 @@
                 <div class="event-detail-card">
                     <h2>${escapeHtml(event.name)}</h2>
                     <div class="detail-row">
-                        <strong>📅 Date:</strong>
+                        <strong>📅 Date</strong>
                         <span>${formatDate(event.date)}</span>
                     </div>
                     <div class="detail-row">
-                        <strong>📍 Location:</strong>
+                        <strong>📍 Location</strong>
                         <span>${escapeHtml(event.location)}</span>
                     </div>
                     <div class="detail-row">
-                        <strong>📝 Description:</strong>
+                        <strong>📝 Description</strong>
                         <p>${escapeHtml(event.description || 'No description provided')}</p>
                     </div>
                 </div>

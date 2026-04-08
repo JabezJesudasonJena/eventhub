@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Eventify</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="index.html" class="navbar-brand">✨ Eventify</a>
+            <div class="navbar-menu">
+                <a href="index.html" class="nav-link">Home</a>
+                <a href="login.html" class="nav-link active">Login</a>
+                <a href="register.html" class="nav-link">Register</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="auth-container">
+            <div class="auth-card">
+                <h1 class="auth-title">Welcome Back</h1>
+                <p class="auth-subtitle">Login to your account to continue</p>
+
+                <!-- Message display area -->
+                <div id="message" class="message hidden"></div>
+
+                <!-- Login Form -->
+                <form id="login-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            required 
+                            placeholder="your.email@example.com"
+                            autocomplete="email"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            required 
+                            placeholder="Enter your password"
+                            autocomplete="current-password"
+                        >
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block" id="login-btn">
+                        Login
+                    </button>
+                </form>
+
+                <div class="auth-footer">
+                    <p>Don't have an account? <a href="register.html" class="auth-link">Register here</a></p>
+                </div>
+
+                <!-- Quick Login Info -->
+                <div class="demo-accounts">
+                    <p class="demo-title">Demo Accounts:</p>
+                    <div class="demo-account">
+                        <strong>Admin:</strong> admin@eventify.com / Admin@123
+                    </div>
+                    <div class="demo-account">
+                        <strong>User:</strong> user@eventify.com / User@123
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin || 'http://localhost:3000';
+
+        // Check if already logged in
+        const token = localStorage.getItem('token');
+        if (token) {
+            window.location.href = 'index.html';
+        }
+
+        // Show message
+        function showMessage(text, type = 'success') {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type}`;
+            setTimeout(() => {
+                messageEl.className = 'message hidden';
+            }, 5000);
+        }
+
+        // Handle login form submission
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const loginBtn = document.getElementById('login-btn');
+            const originalText = loginBtn.textContent;
+            loginBtn.textContent = 'Logging in...';
+            loginBtn.disabled = true;
+
+            const formData = {
+                email: document.getElementById('email').value.trim(),
+                password: document.getElementById('password').value
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Login failed');
+                }
+
+                // Store token and user info
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+
+                showMessage('Login successful! Redirecting...', 'success');
+
+                // Redirect after short delay
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1000);
+
+            } catch (error) {
+                console.error('Login error:', error);
+                showMessage(error.message || 'Login failed. Please try again.', 'error');
+                loginBtn.textContent = originalText;
+                loginBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

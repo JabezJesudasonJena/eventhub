@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Event Details - Eventify</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -13,7 +17,18 @@
             <a href="index.html" class="navbar-brand">✨ Eventify</a>
             <div class="navbar-menu">
                 <a href="index.html" class="nav-link">Home</a>
-                <a href="form.html" class="nav-link">Create Event</a>
+                
+                <div id="guest-menu" class="navbar-menu">
+                    <a href="login.html" class="nav-link">Login</a>
+                    <a href="register.html" class="nav-link">Register</a>
+                </div>
+                
+                <div id="user-menu" class="user-menu hidden">
+                    <span class="user-name" id="user-name-display"></span>
+                    <span class="user-role" id="user-role-display"></span>
+                    <a href="form.html" class="nav-link admin-only">Create Event</a>
+                    <button class="logout-btn" id="logout-btn">Logout</button>
+                </div>
             </div>
         </div>
     </nav>
@@ -61,10 +76,63 @@
     </div>
 
     <script>
-        // API Base URL - automatically uses the same domain as the frontend
+        // API Base URL
         const API_URL = window.location.origin || 'http://localhost:3000';
         const urlParams = new URLSearchParams(window.location.search);
         const eventId = urlParams.get('id');
+
+        // Auth state
+        let currentUser = null;
+        let authToken = null;
+
+        // Initialize auth
+        function initAuth() {
+            authToken = localStorage.getItem('token');
+            const userStr = localStorage.getItem('user');
+            
+            if (authToken && userStr) {
+                try {
+                    currentUser = JSON.parse(userStr);
+                    updateNavbar();
+                } catch (e) {
+                    console.error('Error parsing user data:', e);
+                    logout();
+                }
+            } else {
+                updateNavbar();
+            }
+        }
+
+        // Update navbar
+        function updateNavbar() {
+            const guestMenu = document.getElementById('guest-menu');
+            const userMenu = document.getElementById('user-menu');
+            
+            if (currentUser) {
+                guestMenu.classList.add('hidden');
+                userMenu.classList.remove('hidden');
+                document.getElementById('user-name-display').textContent = currentUser.name;
+                document.getElementById('user-role-display').textContent = currentUser.role;
+                
+                if (currentUser.role === 'admin') {
+                    document.querySelectorAll('.admin-only').forEach(el => {
+                        el.classList.add('visible');
+                    });
+                }
+            } else {
+                guestMenu.classList.remove('hidden');
+                userMenu.classList.add('hidden');
+            }
+        }
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.reload();
+        }
+
+        document.getElementById('logout-btn')?.addEventListener('click', logout);
 
         // Show message to user
         function showMessage(text, type = 'success') {
@@ -101,10 +169,16 @@
             }
 
             try {
-                const response = await fetch(`${API_URL}/events/${eventId}`);
+                const headers = {};
+                if (authToken) {
+                    headers['Authorization'] = `Bearer ${authToken}`;
+                }
+
+                const response = await fetch(`${API_URL}/events/${eventId}`, { headers });
                 if (!response.ok) throw new Error('Event not found');
                 
-                const event = await response.json();
+                const data = await response.json();
+                const event = data.event || data;
                 displayEventDetails(event);
                 loadRegistrations();
             } catch (error) {
@@ -136,17 +210,39 @@
                 </div>
             `;
 
-            // Show registration form
-            document.getElementById('registration-section').classList.remove('hidden');
+            // Show registration form only if logged in as regular user
+            if (currentUser && currentUser.role === 'user') {
+                document.getElementById('registration-section').classList.remove('hidden');
+            } else if (!currentUser) {
+                // Show message to log in
+                const regSection = document.getElementById('registration-section');
+                regSection.innerHTML = `
+                    <div class="message info">
+                        <p>Please <a href="login.html">log in</a> to register for this event.</p>
+                    </div>
+                `;
+                regSection.classList.remove('hidden');
+            }
         }
 
         // Load registrations
         async function loadRegistrations() {
+            // Only show registrations to admins
+            if (!currentUser || currentUser.role !== 'admin') {
+                return;
+            }
+
             try {
-                const response = await fetch(`${API_URL}/events/${eventId}/registrations`);
+                const response = await fetch(`${API_URL}/api/events/${eventId}/registrations`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
                 if (!response.ok) throw new Error('Failed to fetch registrations');
                 
-                const registrations = await response.json();
+                const data = await response.json();
+                const registrations = data.registrations || data;
                 displayRegistrations(registrations);
             } catch (error) {
                 console.error('Error loading registrations:', error);
@@ -162,14 +258,15 @@
             countEl.textContent = registrations.length;
 
             if (registrations.length === 0) {
-                listEl.innerHTML = '<p class="empty-state">No registrations yet. Be the first to register!</p>';
+                listEl.innerHTML = '<p class="empty-state">No registrations yet.</p>';
             } else {
                 listEl.innerHTML = `
                     <div class="registrations-grid">
                         ${registrations.map(reg => `
                             <div class="registration-item">
-                                <strong>👤 ${escapeHtml(reg.name)}</strong>
-                                <span>${escapeHtml(reg.email)}</span>
+                                <strong>👤 ${escapeHtml(reg.user_name || reg.name)}</strong>
+                                <span>${escapeHtml(reg.user_email || reg.email)}</span>
+                                <small>Status: ${escapeHtml(reg.status || 'registered')}</small>
                             </div>
                         `).join('')}
                     </div>
@@ -180,27 +277,22 @@
         }
 
         // Handle registration form submission
-        document.getElementById('registration-form').addEventListener('submit', async (e) => {
+        document.getElementById('registration-form')?.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const formData = {
-                name: document.getElementById('name').value.trim(),
-                email: document.getElementById('email').value.trim()
-            };
-
-            // Validation
-            if (!formData.name || !formData.email) {
-                showMessage('Please fill in all required fields', 'error');
+            if (!currentUser) {
+                showMessage('Please log in to register', 'error');
+                setTimeout(() => window.location.href = 'login.html', 1500);
                 return;
             }
 
             try {
-                const response = await fetch(`${API_URL}/events/${eventId}/register`, {
+                const response = await fetch(`${API_URL}/api/events/${eventId}/register`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
                 });
 
                 if (!response.ok) {
@@ -209,16 +301,22 @@
                 }
 
                 showMessage('Successfully registered for the event!', 'success');
-                document.getElementById('registration-form').reset();
-                loadRegistrations(); // Reload registrations
+                
+                // Hide registration form after successful registration
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
             } catch (error) {
                 console.error('Error registering:', error);
                 showMessage(error.message || 'Failed to register', 'error');
             }
         });
 
-        // Load event details on page load
-        document.addEventListener('DOMContentLoaded', loadEventDetails);
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            initAuth();
+            loadEventDetails();
+        });
     </script>
 </body>
 </html>

@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eventify - Modern Event Registration System</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -13,7 +17,19 @@
             <a href="index.html" class="navbar-brand">✨ Eventify</a>
             <div class="navbar-menu">
                 <a href="index.html" class="nav-link active">Home</a>
-                <a href="form.html" class="nav-link">Create Event</a>
+                
+                <!-- Show different links based on auth status -->
+                <div id="guest-menu" class="navbar-menu">
+                    <a href="login.html" class="nav-link">Login</a>
+                    <a href="register.html" class="nav-link">Register</a>
+                </div>
+                
+                <div id="user-menu" class="user-menu hidden">
+                    <span class="user-name" id="user-name-display"></span>
+                    <span class="user-role" id="user-role-display"></span>
+                    <a href="form.html" class="nav-link admin-only" id="create-event-link">Create Event</a>
+                    <button class="logout-btn" id="logout-btn">Logout</button>
+                </div>
             </div>
         </div>
     </nav>
@@ -47,8 +63,83 @@
     </div>
 
     <script>
-        // API Base URL - Update this to your deployed backend URL
+        // API Base URL
         const API_URL = window.location.origin || 'http://localhost:3000';
+
+        // Get auth token and user
+        let currentUser = null;
+        let authToken = null;
+
+        // Initialize auth state
+        function initAuth() {
+            authToken = localStorage.getItem('token');
+            const userStr = localStorage.getItem('user');
+            
+            if (authToken && userStr) {
+                try {
+                    currentUser = JSON.parse(userStr);
+                    updateNavbar();
+                } catch (e) {
+                    console.error('Error parsing user data:', e);
+                    logout();
+                }
+            } else {
+                updateNavbar();
+            }
+        }
+
+        // Update navbar based on auth state
+        function updateNavbar() {
+            const guestMenu = document.getElementById('guest-menu');
+            const userMenu = document.getElementById('user-menu');
+            const createEventBtn = document.querySelector('.hero-cta');
+            
+            if (currentUser) {
+                // Show user menu, hide guest menu
+                guestMenu.classList.add('hidden');
+                userMenu.classList.remove('hidden');
+                
+                // Update user info
+                document.getElementById('user-name-display').textContent = currentUser.name;
+                document.getElementById('user-role-display').textContent = currentUser.role;
+                
+                // Show admin controls if admin
+                if (currentUser.role === 'admin') {
+                    document.querySelectorAll('.admin-only').forEach(el => {
+                        el.classList.add('visible');
+                    });
+                    if (createEventBtn) {
+                        createEventBtn.style.display = 'inline-flex';
+                    }
+                } else {
+                    // Hide create event button for regular users
+                    if (createEventBtn) {
+                        createEventBtn.style.display = 'none';
+                    }
+                }
+            } else {
+                // Show guest menu, hide user menu
+                guestMenu.classList.remove('hidden');
+                userMenu.classList.add('hidden');
+                
+                // Hide create event button
+                if (createEventBtn) {
+                    createEventBtn.style.display = 'none';
+                }
+            }
+        }
+
+        // Logout function
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            currentUser = null;
+            authToken = null;
+            window.location.reload();
+        }
+
+        // Attach logout handler
+        document.getElementById('logout-btn')?.addEventListener('click', logout);
 
         // Show message to user
         function showMessage(text, type = 'success') {
@@ -73,10 +164,16 @@
         // Load all events
         async function loadEvents() {
             try {
-                const response = await fetch(`${API_URL}/events`);
+                const headers = {};
+                if (authToken) {
+                    headers['Authorization'] = `Bearer ${authToken}`;
+                }
+
+                const response = await fetch(`${API_URL}/events`, { headers });
                 if (!response.ok) throw new Error('Failed to fetch events');
                 
-                const events = await response.json();
+                const data = await response.json();
+                const events = data.events || data;
                 displayEvents(events);
             } catch (error) {
                 console.error('Error loading events:', error);
@@ -95,6 +192,8 @@
                 return;
             }
 
+            const isAdmin = currentUser?.role === 'admin';
+
             container.innerHTML = events.map(event => `
                 <div class="event-card">
                     <h3>${escapeHtml(event.name)}</h3>
@@ -105,28 +204,38 @@
                     </div>
                     <div class="event-actions">
                         <a href="event.html?id=${event.id}" class="btn btn-small btn-primary">View Details</a>
-                        <a href="form.html?id=${event.id}" class="btn btn-small btn-secondary">Edit</a>
-                        <button onclick="deleteEvent(${event.id})" class="btn btn-small btn-danger">Delete</button>
+                        ${isAdmin ? `
+                            <a href="form.html?id=${event.id}" class="btn btn-small btn-secondary">Edit</a>
+                            <button onclick="deleteEvent(${event.id})" class="btn btn-small btn-danger">Delete</button>
+                        ` : ''}
                     </div>
                 </div>
             `).join('');
         }
 
-        // Delete event
+        // Delete event (Admin only)
         async function deleteEvent(eventId) {
+            if (!currentUser || currentUser.role !== 'admin') {
+                showMessage('Only admins can delete events', 'error');
+                return;
+            }
+
             if (!confirm('Are you sure you want to delete this event? All registrations will also be deleted.')) {
                 return;
             }
 
             try {
                 const response = await fetch(`${API_URL}/events/${eventId}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
                 });
 
                 if (!response.ok) throw new Error('Failed to delete event');
 
                 showMessage('Event deleted successfully!', 'success');
-                loadEvents(); // Reload events
+                loadEvents();
             } catch (error) {
                 console.error('Error deleting event:', error);
                 showMessage('Failed to delete event', 'error');
@@ -140,8 +249,11 @@
             return div.innerHTML;
         }
 
-        // Load events on page load
-        document.addEventListener('DOMContentLoaded', loadEvents);
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initAuth();
+            loadEvents();
+        });
     </script>
 </body>
 </html>

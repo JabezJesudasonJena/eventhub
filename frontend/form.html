@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Event Form - Eventify</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,6 +18,11 @@
             <div class="navbar-menu">
                 <a href="index.html" class="nav-link">Home</a>
                 <a href="form.html" class="nav-link active">Create Event</a>
+                
+                <div id="user-menu" class="user-menu hidden">
+                    <span class="user-name" id="user-name-display"></span>
+                    <button class="logout-btn" id="logout-btn">Logout</button>
+                </div>
             </div>
         </div>
     </nav>
@@ -65,17 +74,69 @@
     </div>
 
     <script>
-        // API Base URL - automatically uses the same domain as the frontend
+        // API Base URL
         const API_URL = window.location.origin || 'http://localhost:3000';
         const urlParams = new URLSearchParams(window.location.search);
         const eventId = urlParams.get('id');
         const isEditMode = !!eventId;
 
+        // Auth state
+        let currentUser = null;
+        let authToken = null;
+
+        // Initialize auth
+        function initAuth() {
+            authToken = localStorage.getItem('token');
+            const userStr = localStorage.getItem('user');
+            
+            if (!authToken || !userStr) {
+                // Not logged in, redirect to login
+                alert('You must be logged in to create or edit events');
+                window.location.href = 'login.html';
+                return false;
+            }
+            
+            try {
+                currentUser = JSON.parse(userStr);
+                
+                // Check if admin
+                if (currentUser.role !== 'admin') {
+                    alert('Only admins can create or edit events');
+                    window.location.href = 'index.html';
+                    return false;
+                }
+                
+                updateNavbar();
+                return true;
+            } catch (e) {
+                console.error('Error parsing user data:', e);
+                logout();
+                return false;
+            }
+        }
+
+        // Update navbar
+        function updateNavbar() {
+            const userMenu = document.getElementById('user-menu');
+            if (currentUser) {
+                userMenu.classList.remove('hidden');
+                document.getElementById('user-name-display').textContent = currentUser.name;
+            }
+        }
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        }
+
+        document.getElementById('logout-btn')?.addEventListener('click', logout);
+
         // Update UI for edit mode
         if (isEditMode) {
             document.getElementById('form-title').textContent = 'Edit Event';
             document.getElementById('submit-btn').textContent = 'Update Event';
-            loadEventForEdit();
         }
 
         // Show message to user
@@ -91,14 +152,20 @@
         // Load event data for editing
         async function loadEventForEdit() {
             try {
-                const response = await fetch(`${API_URL}/events/${eventId}`);
+                const response = await fetch(`${API_URL}/events/${eventId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
                 if (!response.ok) throw new Error('Event not found');
                 
-                const event = await response.json();
+                const data = await response.json();
+                const event = data.event || data;
                 
                 // Populate form fields
                 document.getElementById('name').value = event.name;
-                document.getElementById('date').value = event.date.split('T')[0]; // Format date for input
+                document.getElementById('date').value = event.date.split('T')[0];
                 document.getElementById('location').value = event.location;
                 document.getElementById('description').value = event.description || '';
             } catch (error) {
@@ -135,7 +202,8 @@
                 const response = await fetch(url, {
                     method: method,
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
                     },
                     body: JSON.stringify(formData)
                 });
@@ -158,6 +226,13 @@
             } catch (error) {
                 console.error('Error saving event:', error);
                 showMessage(error.message || 'Failed to save event', 'error');
+            }
+        });
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (initAuth() && isEditMode) {
+                loadEventForEdit();
             }
         });
     </script>

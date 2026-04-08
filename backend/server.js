@@ -2,169 +2,138 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
-const { initializeDatabase, eventOperations, registrationOperations } = require('./database');
+
+// Import routes
+const authRoutes = require('./routes/auth');
+const eventRoutes = require('./routes/events');
+const registrationRoutes = require('./routes/registrations');
+const analyticsRoutes = require('./routes/analytics');
+
+// Import middleware
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+
+// Import database
+const { pool } = require('./utils/db');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
-// CORS Configuration - Allow all origins for now
+// ===== MIDDLEWARE =====
+
+// CORS Configuration
 app.use(cors({
-    origin: '*',
+    origin: process.env.CORS_ORIGIN || '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
 }));
 
-// Middleware
-app.use(express.json()); // Parse JSON bodies
-app.use(express.static(path.join(__dirname, '../frontend'))); // Serve frontend files
+// Body parsers
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Log all requests with timestamp
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, '../frontend')));
+
+// Request logging
 app.use((req, res, next) => {
     const timestamp = new Date().toISOString();
     console.log(`[${timestamp}] ${req.method} ${req.path}`);
     next();
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'OK', 
-        timestamp: new Date().toISOString(),
-        service: 'Event Registration API'
+// ===== HEALTH CHECK =====
+
+app.get('/health', async (req, res) => {
+    try {
+        await pool.query('SELECT 1');
+        res.json({
+            status: 'OK',
+            timestamp: new Date().toISOString(),
+            service: 'Event Registration API v2.0',
+            database: 'Connected'
+        });
+    } catch (error) {
+        res.status(503).json({
+            status: 'ERROR',
+            timestamp: new Date().toISOString(),
+            service: 'Event Registration API v2.0',
+            database: 'Disconnected'
+        });
+    }
+});
+
+// ===== API ROUTES =====
+
+app.use('/auth', authRoutes);
+app.use('/events', eventRoutes);
+app.use('/api', registrationRoutes); // /api/events/:id/register, /api/my-registrations
+app.use('/analytics', analyticsRoutes);
+
+// ===== FRONTEND ROUTES =====
+
+// Serve frontend pages
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
+
+// ===== ERROR HANDLING =====
+
+// 404 handler
+app.use(notFoundHandler);
+
+// Global error handler
+app.use(errorHandler);
+
+// ===== START SERVER =====
+
+app.listen(PORT, () => {
+    console.log('='.repeat(50));
+    console.log('🚀 Event Registration System API v2.0');
+    console.log('='.repeat(50));
+    console.log(`✓ Server running on port ${PORT}`);
+    console.log(`✓ API: http://localhost:${PORT}`);
+    console.log(`✓ Frontend: http://localhost:${PORT}`);
+    console.log('='.repeat(50));
+    console.log('\n📋 API Endpoints:');
+    console.log('  Authentication:');
+    console.log('    POST   /auth/signup');
+    console.log('    POST   /auth/login');
+    console.log('    GET    /auth/me');
+    console.log('  Events:');
+    console.log('    GET    /events');
+    console.log('    GET    /events/:id');
+    console.log('    POST   /events (admin)');
+    console.log('    PUT    /events/:id (admin)');
+    console.log('    DELETE /events/:id (admin)');
+    console.log('  Registrations:');
+    console.log('    POST   /api/events/:id/register (user)');
+    console.log('    PUT    /api/events/:id/cancel (user)');
+    console.log('    GET    /api/my-registrations (user)');
+    console.log('    GET    /api/events/:id/registrations (admin)');
+    console.log('  Analytics:');
+    console.log('    GET    /analytics/stats (admin)');
+    console.log('    GET    /analytics/top-events (admin)');
+    console.log('    GET    /analytics/trends (admin)');
+    console.log('    GET    /analytics/participation (admin)');
+    console.log('    GET    /analytics/capacity (admin)');
+    console.log('='.repeat(50));
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('\n⏹️  Shutting down gracefully...');
+    pool.end(() => {
+        console.log('✓ Database connections closed');
+        process.exit(0);
     });
 });
 
-// Initialize database before starting server
-initializeDatabase().then(() => {
-    console.log('Database initialized');
-    
-    // ===== EVENT ROUTES =====
-
-    // GET /events - Get all events
-    app.get('/events', async (req, res) => {
-        try {
-            const events = await eventOperations.getAllEvents();
-            res.json(events);
-        } catch (error) {
-            console.error('Error fetching events:', error);
-            res.status(500).json({ error: 'Failed to fetch events' });
-        }
+process.on('SIGINT', () => {
+    console.log('\n⏹️  Shutting down gracefully...');
+    pool.end(() => {
+        console.log('✓ Database connections closed');
+        process.exit(0);
     });
-
-    // GET /events/:id - Get single event
-    app.get('/events/:id', async (req, res) => {
-        try {
-            const event = await eventOperations.getEventById(req.params.id);
-            if (!event) {
-                return res.status(404).json({ error: 'Event not found' });
-            }
-            res.json(event);
-        } catch (error) {
-            console.error('Error fetching event:', error);
-            res.status(500).json({ error: 'Failed to fetch event' });
-        }
-    });
-
-    // POST /events - Create new event
-    app.post('/events', async (req, res) => {
-        try {
-            const { name, date, location, description } = req.body;
-
-            // Validation
-            if (!name || !date || !location) {
-                return res.status(400).json({ error: 'Name, date, and location are required' });
-            }
-
-            const event = await eventOperations.createEvent({ name, date, location, description });
-            res.status(201).json(event);
-        } catch (error) {
-            console.error('Error creating event:', error);
-            res.status(500).json({ error: 'Failed to create event' });
-        }
-    });
-
-    // PUT /events/:id - Update event
-    app.put('/events/:id', async (req, res) => {
-        try {
-            const { name, date, location, description } = req.body;
-
-            // Validation
-            if (!name || !date || !location) {
-                return res.status(400).json({ error: 'Name, date, and location are required' });
-            }
-
-            const event = await eventOperations.updateEvent(req.params.id, { name, date, location, description });
-            res.json(event);
-        } catch (error) {
-            console.error('Error updating event:', error);
-            if (error.message === 'Event not found') {
-                res.status(404).json({ error: 'Event not found' });
-            } else {
-                res.status(500).json({ error: 'Failed to update event' });
-            }
-        }
-    });
-
-    // DELETE /events/:id - Delete event
-    app.delete('/events/:id', async (req, res) => {
-        try {
-            const result = await eventOperations.deleteEvent(req.params.id);
-            res.json(result);
-        } catch (error) {
-            console.error('Error deleting event:', error);
-            if (error.message === 'Event not found') {
-                res.status(404).json({ error: 'Event not found' });
-            } else {
-                res.status(500).json({ error: 'Failed to delete event' });
-            }
-        }
-    });
-
-    // ===== REGISTRATION ROUTES =====
-
-    // POST /events/:id/register - Register for an event
-    app.post('/events/:id/register', async (req, res) => {
-        try {
-            const { name, email } = req.body;
-
-            // Validation
-            if (!name || !email) {
-                return res.status(400).json({ error: 'Name and email are required' });
-            }
-
-            // Check if event exists
-            const event = await eventOperations.getEventById(req.params.id);
-            if (!event) {
-                return res.status(404).json({ error: 'Event not found' });
-            }
-
-            const registration = await registrationOperations.registerForEvent(req.params.id, { name, email });
-            res.status(201).json(registration);
-        } catch (error) {
-            console.error('Error registering for event:', error);
-            res.status(500).json({ error: 'Failed to register for event' });
-        }
-    });
-
-    // GET /events/:id/registrations - Get registrations for an event
-    app.get('/events/:id/registrations', async (req, res) => {
-        try {
-            const registrations = await registrationOperations.getEventRegistrations(req.params.id);
-            res.json(registrations);
-        } catch (error) {
-            console.error('Error fetching registrations:', error);
-            res.status(500).json({ error: 'Failed to fetch registrations' });
-        }
-    });
-
-    // ===== SERVER START =====
-
-    app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
-        console.log(`API available at /events`);
-    });
-}).catch(err => {
-    console.error('Failed to initialize database:', err);
-    process.exit(1);
 });
+

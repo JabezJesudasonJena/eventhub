@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Eventify</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="index.html" class="navbar-brand">✨ Eventify</a>
+            <div class="navbar-menu">
+                <a href="index.html" class="nav-link">Home</a>
+                <a href="login.html" class="nav-link">Login</a>
+                <a href="register.html" class="nav-link active">Register</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="auth-container">
+            <div class="auth-card">
+                <h1 class="auth-title">Create Account</h1>
+                <p class="auth-subtitle">Join Eventify to discover amazing events</p>
+
+                <!-- Message display area -->
+                <div id="message" class="message hidden"></div>
+
+                <!-- Register Form -->
+                <form id="register-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="name">Full Name</label>
+                        <input 
+                            type="text" 
+                            id="name" 
+                            name="name" 
+                            required 
+                            placeholder="John Doe"
+                            autocomplete="name"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            required 
+                            placeholder="your.email@example.com"
+                            autocomplete="email"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            required 
+                            placeholder="At least 8 characters"
+                            autocomplete="new-password"
+                        >
+                        <small class="form-help">
+                            Password must be at least 8 characters with uppercase, lowercase, and number
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirm-password">Confirm Password</label>
+                        <input 
+                            type="password" 
+                            id="confirm-password" 
+                            name="confirm-password" 
+                            required 
+                            placeholder="Re-enter your password"
+                            autocomplete="new-password"
+                        >
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block" id="register-btn">
+                        Create Account
+                    </button>
+                </form>
+
+                <div class="auth-footer">
+                    <p>Already have an account? <a href="login.html" class="auth-link">Login here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin || 'http://localhost:3000';
+
+        // Check if already logged in
+        const token = localStorage.getItem('token');
+        if (token) {
+            window.location.href = 'index.html';
+        }
+
+        // Show message
+        function showMessage(text, type = 'success') {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type}`;
+            setTimeout(() => {
+                messageEl.className = 'message hidden';
+            }, 5000);
+        }
+
+        // Validate password
+        function validatePassword(password) {
+            if (password.length < 8) {
+                return 'Password must be at least 8 characters';
+            }
+            if (!/[A-Z]/.test(password)) {
+                return 'Password must contain at least one uppercase letter';
+            }
+            if (!/[a-z]/.test(password)) {
+                return 'Password must contain at least one lowercase letter';
+            }
+            if (!/[0-9]/.test(password)) {
+                return 'Password must contain at least one number';
+            }
+            return null;
+        }
+
+        // Handle register form submission
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const registerBtn = document.getElementById('register-btn');
+            const originalText = registerBtn.textContent;
+            registerBtn.textContent = 'Creating account...';
+            registerBtn.disabled = true;
+
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+
+            // Validation
+            if (password !== confirmPassword) {
+                showMessage('Passwords do not match', 'error');
+                registerBtn.textContent = originalText;
+                registerBtn.disabled = false;
+                return;
+            }
+
+            const passwordError = validatePassword(password);
+            if (passwordError) {
+                showMessage(passwordError, 'error');
+                registerBtn.textContent = originalText;
+                registerBtn.disabled = false;
+                return;
+            }
+
+            const formData = {
+                name,
+                email,
+                password
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/auth/signup`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Registration failed');
+                }
+
+                // Store token and user info
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+
+                showMessage('Account created successfully! Redirecting...', 'success');
+
+                // Redirect after short delay
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1000);
+
+            } catch (error) {
+                console.error('Registration error:', error);
+                showMessage(error.message || 'Registration failed. Please try again.', 'error');
+                registerBtn.textContent = originalText;
+                registerBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

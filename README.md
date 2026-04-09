@@ -1,4 +1,4 @@
-# 🎉 Event Registration System (Eventify)
+# 🎉 Event Registration System (Eventhub)
 
 A comprehensive, production-ready full-stack Event Registration System with authentication, role-based access control, and advanced features. Built as a complete web application for managing events and user registrations.
 
@@ -932,7 +932,11 @@ Contributions are welcome! Please follow these guidelines:
 
 ## 📄 License
 
-This project is licensed under the **ISC License**.
+This project is made as for Mini project for our Academics 
+Team members 
+1. Jabez 
+1 Janani N M
+2 Janani S.
 
 ---
 
@@ -966,12 +970,12 @@ College Project Submission
 
 For issues, questions, or suggestions:
 - Create an issue in the GitHub repository
-- Contact: [your-email@example.com]
+- Contact: [boycalledjabez@gmail.com]
 - Documentation: Check additional .md files in project root
 
 ---
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - Express.js documentation
 - PostgreSQL documentation
